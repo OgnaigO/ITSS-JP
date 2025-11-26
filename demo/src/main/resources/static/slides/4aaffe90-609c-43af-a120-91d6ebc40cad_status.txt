@@ -1,0 +1,21 @@
+Rà soát lại status, type
+
+Bảng user:
+  status VARCHAR(20),   -- ACTIVE, BANNED, PENDING
+
+Bảng AccountTransaction:
+  type VARCHAR(20),  -- DEPOSIT, WITHDRAW, TRANSFER, RECEIVED
+  status VARCHAR(20), -- PENDING, PENDING, CANCELD
+
+Bảng Product:
+  status VARCHAR(20), -- CANCELED, PENDING, SOLD, APPROVED
+
+Bảng Aution:
+  status VARCHAR(20), -- PENDING, OPEN, CANCELED, CLOSED
+
+Bảng transactionalfer
+  status VARCHAR(20), -- PENDING, SHIPPED, PAID, DONE, CANCELED
+
+Bảng noftification 
+  type VARCHAR(50), -- AUCTION, SYSTEM, PAYMENT
+

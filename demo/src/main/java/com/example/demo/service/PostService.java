@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -172,16 +173,17 @@ public class PostService {
             List<MultipartFile> slides
     ) throws IOException {
 
-        String uploadDir = "src/main/resources/static/slides/";
+        String uploadDir = "uploads/slides/";
+        Files.createDirectories(Paths.get(uploadDir));
 
         List<String> slideUrls = new ArrayList<>();
 
         for (MultipartFile file : slides) {
 
             String fileName = UUID.randomUUID() + "_" + file.getOriginalFilename();
-            Path path = Paths.get(uploadDir + fileName);
+            Path path = Paths.get(uploadDir, fileName);
 
-            Files.copy(file.getInputStream(), path);
+            Files.copy(file.getInputStream(), path, StandardCopyOption.REPLACE_EXISTING);
 
             slideUrls.add("/slides/" + fileName);
         }
@@ -201,8 +203,4 @@ public class PostService {
 
         return postRepository.save(post);
     }
-
-
-
-
 }
