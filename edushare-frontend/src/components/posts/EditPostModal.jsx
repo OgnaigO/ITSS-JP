@@ -5,7 +5,6 @@ export default function EditPostModal({ isOpen, post, onClose, onSave }) {
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("");
   const [description, setDescription] = useState("");
-  const [slideUrl, setSlideUrl] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   // Khi mở modal, fill dữ liệu từ post
@@ -14,8 +13,6 @@ export default function EditPostModal({ isOpen, post, onClose, onSave }) {
       setTitle(post.title || "");
       setCategory(post.category || "");
       setDescription(post.description || "");
-      // tuỳ backend: có thể là post.slideUrl hoặc post.slideUrls[0]
-      setSlideUrl(post.slideUrl || (post.slideUrls && post.slideUrls[0]) || "");
     }
   }, [isOpen, post]);
 
@@ -28,13 +25,18 @@ export default function EditPostModal({ isOpen, post, onClose, onSave }) {
       await onSave({
         title,
         description,
-        slideUrl,
         category,
+        // Giữ nguyên danh sách slide cũ, không chỉnh ở modal này
+        slideUrls: post.slideUrls || [],
       });
     } finally {
       setSubmitting(false);
     }
   };
+
+  // Chỉ dùng để hiển thị, không cho sửa
+  const firstSlideUrl =
+    (post.slideUrls && post.slideUrls[0]) || post.slideUrl || "";
 
   return (
     <div className="modal-backdrop">
@@ -76,8 +78,8 @@ export default function EditPostModal({ isOpen, post, onClose, onSave }) {
             Slide URL
             <input
               type="text"
-              value={slideUrl}
-              onChange={(e) => setSlideUrl(e.target.value)}
+              value={firstSlideUrl}
+              readOnly // chỉ cho xem / copy, không sửa
               placeholder="/slides/new_slide.pdf"
             />
           </label>
@@ -86,7 +88,11 @@ export default function EditPostModal({ isOpen, post, onClose, onSave }) {
             <button type="button" onClick={onClose}>
               Cancel
             </button>
-            <button type="submit" className="btn-primary" disabled={submitting}>
+            <button
+              type="submit"
+              className="btn-primary save-change"
+              disabled={submitting}
+            >
               {submitting ? "Saving..." : "Save changes"}
             </button>
           </div>
