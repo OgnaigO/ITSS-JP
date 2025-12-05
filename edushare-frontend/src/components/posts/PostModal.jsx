@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createPost } from "../../api/postsApi";
 
 export default function PostModal({ isOpen, onClose, onCreated }) {
@@ -6,10 +6,47 @@ export default function PostModal({ isOpen, onClose, onCreated }) {
   const [subject, setSubject] = useState("");
   const [description, setDescription] = useState("");
   const [authorName, setAuthorName] = useState("");
-  const [slideFiles, setSlideFiles] = useState([]); // mảng file
+
+  const [slideFiles, setSlideFiles] = useState([]); // mảng file thật để gửi BE
+  const [slidePreviews, setSlidePreviews] = useState([]); // mảng info để preview
+
   const [submitting, setSubmitting] = useState(false);
 
+  // Khi đóng modal thì reset form + giải phóng URL preview
+  useEffect(() => {
+    if (!isOpen) {
+      setTitle("");
+      setSubject("");
+      setDescription("");
+      setAuthorName("");
+      setSlideFiles([]);
+
+      // revoke các object URL cũ
+      slidePreviews.forEach((p) => URL.revokeObjectURL(p.url));
+      setSlidePreviews([]);
+    }
+  }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+
   if (!isOpen) return null;
+
+  const handleSlidesChange = (e) => {
+    const files = Array.from(e.target.files || []);
+
+    setSlideFiles(files);
+
+    // Xoá các object URL cũ
+    slidePreviews.forEach((p) => URL.revokeObjectURL(p.url));
+
+    // Tạo object URL mới để preview
+    const previews = files.map((file) => ({
+      name: file.name,
+      url: URL.createObjectURL(file),
+      isImage: file.type.startsWith("image/"),
+      isPdf: file.type === "application/pdf",
+    }));
+
+    setSlidePreviews(previews);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -90,15 +127,53 @@ export default function PostModal({ isOpen, onClose, onCreated }) {
               type="file"
               accept=".pdf,image/*"
               multiple
-              onChange={(e) => setSlideFiles(Array.from(e.target.files || []))}
+              onChange={handleSlidesChange}
             />
           </label>
+
+          {/* ==== PREVIEW KHU VỰC SLIDE ==== */}
+          {slidePreviews.length > 0 && (
+            <div className="slides-preview-list">
+              {slidePreviews.map((p, idx) => (
+                <div key={idx} className="slides-preview-item">
+                  <div className="slides-preview-title">
+                    Slide {idx + 1} – {p.name}
+                  </div>
+
+                  {p.isImage && (
+                    <img
+                      src={p.url}
+                      alt={p.name}
+                      className="slides-preview-img"
+                    />
+                  )}
+
+                  {p.isPdf && (
+                    <iframe
+                      src={p.url}
+                      title={p.name}
+                      className="slides-preview-frame"
+                    />
+                  )}
+
+                  {!p.isImage && !p.isPdf && (
+                    <div className="slides-preview-other">{p.name}</div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+          {/* ==== HẾT PHẦN PREVIEW ==== */}
 
           <div className="modal-actions">
             <button type="button" onClick={onClose}>
               Cancel
             </button>
-            <button type="submit" className="btn-primary" disabled={submitting}>
+            <button
+              type="submit"
+              className="btn-primary post-slide"
+              disabled={submitting}
+            >
               {submitting ? "Posting..." : "Post Slide"}
             </button>
           </div>

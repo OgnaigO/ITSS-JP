@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 
 export default function PostCard({ post }) {
   return (
-    <article className="post-card">
+    <Link to={`/posts/${post.id}`} className="post-card">
       <div className="post-card-image-placeholder" />
 
       <div className="post-card-body">
@@ -16,9 +16,9 @@ export default function PostCard({ post }) {
           </div>
         </div>
 
-        <Link to={`/posts/${post.id}`} className="post-title">
+        <div to={`/posts/${post.id}`} className="post-title">
           {post.title}
-        </Link>
+        </div>
 
         <p className="post-description">{post.description?.slice(0, 120)}...</p>
 
@@ -30,6 +30,6 @@ export default function PostCard({ post }) {
           <div className="comments-count">💬 {post.commentsCount ?? 0}</div>
         </div>
       </div>
-    </article>
+    </Link>
   );
 }

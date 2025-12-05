@@ -126,8 +126,18 @@ button {
   cursor: pointer;
 }
 
+.btn-primary.post-slide,
+.btn-primary.save-change {
+  background-color: black;
+}
+
 .btn-primary:hover {
   background-color: #1d4ed8;
+}
+
+.btn-primary.post-slide:hover,
+.btn-primary.btn-primary.save-change:hover {
+  background-color: grey;
 }
 
 /* ================== HOME / MY POSTS ================== */
@@ -293,6 +303,83 @@ button {
   color: #6b7280;
 }
 
+/* ===== FILTER BAR (category + sort + clear) ===== */
+
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 16px;
+}
+
+/* Các ô select trong filter-bar */
+.filter-bar select {
+  border-radius: 999px;
+  padding: 6px 12px;
+  border: 1px solid #d1d5db;
+  background-color: #ffffff;
+  font-size: 13px;
+  color: #374151;
+  cursor: pointer;
+}
+
+.filter-bar select:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.2);
+}
+
+/* Nút Clear filters */
+.filter-bar button {
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 13px;
+  border: 1px solid #d1d5db;
+  background-color: #f3f4f6;
+  color: #374151;
+  cursor: pointer;
+}
+
+.filter-bar button:hover {
+  background-color: #e5e7eb;
+}
+
+/* ===== PAGINATION ===== */
+
+.pagination {
+  margin: 24px 0 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  font-size: 14px;
+  color: #4b5563;
+}
+
+.pagination button {
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 13px;
+  border: 1px solid #d1d5db;
+  background-color: #ffffff;
+  cursor: pointer;
+}
+
+.pagination button:hover:not(:disabled) {
+  background-color: #f3f4f6;
+}
+
+.pagination button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.pagination span {
+  font-weight: 500;
+  color: #111827;
+}
+
 /* ================== POST DETAIL ================== */
 
 .post-detail {
@@ -435,25 +522,45 @@ button {
   font-size: 13px;
 }
 
+.comments-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.comment-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.comment-children {
+  list-style: none;
+  margin: 4px 0 0 0;
+  padding: 0;
+}
+
 /* ================== MODAL POST SLIDE ================== */
 
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background-color: rgba(15, 23, 42, 0.35);
+  background: rgba(0, 0, 0, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 100;
+  z-index: 1000;
 }
 
 .modal {
-  width: 480px;
-  max-width: 96%;
-  background-color: #ffffff;
+  background: #fff;
   border-radius: 16px;
-  padding: 20px 22px 18px;
-  box-shadow: 0 10px 40px rgba(15, 23, 42, 0.35);
+  padding: 24px;
+  width: 600px;
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
 .modal h2 {
@@ -582,6 +689,39 @@ button {
   margin-top: 4px;
   font-size: 14px;
   color: #2563eb;
+}
+
+.slides-preview-list {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.slides-preview-item {
+  background: #f3f4f6;
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.slides-preview-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.slides-preview-img {
+  width: 100%;
+  max-height: 260px;
+  object-fit: contain;
+  border-radius: 6px;
+}
+
+.slides-preview-frame {
+  width: 100%;
+  height: 260px;
+  border: none;
+  border-radius: 6px;
 }
 
 /* ================== RESPONSIVE ================== */

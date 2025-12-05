@@ -8,26 +8,27 @@ const API_BASE = "http://localhost:8080/api";
 export async function fetchPosts({
   page = 0,
   size = 10,
-  sortBy = "createdAt",
-  direction = "desc",
+  sortBy,
+  direction,
   category,
   title,
   authorId,
 } = {}) {
-  const params = new URLSearchParams({
-    page,
-    size,
-    sortBy,
-    direction,
-  });
+  const params = new URLSearchParams();
 
+  params.append("page", page);
+  params.append("size", size);
+
+  // CHỈ gửi khi có giá trị
+  if (sortBy) params.append("sortBy", sortBy);
+  if (direction) params.append("direction", direction);
   if (category) params.append("category", category);
   if (title) params.append("title", title);
   if (authorId) params.append("authorId", authorId);
 
   const res = await fetch(`${API_BASE}/posts/filter?${params.toString()}`);
   if (!res.ok) throw new Error("Failed to fetch posts");
-  return res.json(); // Page<Post>
+  return res.json();
 }
 
 /**

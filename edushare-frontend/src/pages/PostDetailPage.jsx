@@ -1,3 +1,4 @@
+// src/pages/PostDetailPage.jsx
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
@@ -47,17 +48,34 @@ export default function PostDetailPage() {
     load();
   }, [id]);
 
-  // Tạo comment mới
+  // Tạo comment gốc (parentId = null)
   const handleCreateComment = async (content) => {
     try {
       await createComment(id, {
         content,
-        authorId: "t001", // tạm hard-code, sau này thay bằng user thật
+        authorId: "t001", // tạm hard-code
         authorName: "Tanaka Sensei",
         parentId: null,
       });
 
-      // reload lại post để có danh sách comment mới
+      const updatedPost = await fetchPostById(id);
+      setPost(updatedPost);
+      setComments(updatedPost.comments || []);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  // Tạo reply cho 1 comment
+  const handleCreateReply = async (parentId, content) => {
+    try {
+      await createComment(id, {
+        content,
+        authorId: "t001",
+        authorName: "Tanaka Sensei",
+        parentId,
+      });
+
       const updatedPost = await fetchPostById(id);
       setPost(updatedPost);
       setComments(updatedPost.comments || []);
@@ -84,7 +102,7 @@ export default function PostDetailPage() {
 
     try {
       await deletePost(id);
-      navigate("/myposts"); // hoặc "/" tuỳ bạn
+      navigate("/my-posts"); // hoặc "/"
     } catch (e) {
       console.error(e);
     }
@@ -177,7 +195,6 @@ export default function PostDetailPage() {
             <h2>Slides</h2>
             <div className="slides-grid">
               {post.slideUrls.map((url, index) => {
-                // backend trả /slides/xxx -> cần prefix host:port
                 const fullUrl = `http://localhost:8080${url}`;
 
                 return (
@@ -221,13 +238,18 @@ export default function PostDetailPage() {
             </div>
           </section>
         )}
-        {/* ===== END SLIDES SECTION ===== */}
 
+        {/* ===== COMMENTS ===== */}
         <section className="comments-section">
           <h2>Comments ({comments.length})</h2>
+
+          {/* Form comment gốc */}
           <CommentForm onSubmit={handleCreateComment} />
+
+          {/* List comment + reply inline */}
           <CommentList
             comments={comments}
+            onCreateReply={handleCreateReply}
             onUpdateComment={handleUpdateComment}
             onDeleteComment={handleDeleteComment}
           />
