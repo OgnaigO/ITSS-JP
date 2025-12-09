@@ -196,7 +196,7 @@ public class PostService {
 
         User author = new User();
         author.setId(UUID.randomUUID().toString());
-        author.setName(authorName);
+        author.setUsername(authorName);
         post.setAuthor(author);
 
         post.setCreatedAt(LocalDateTime.now());
