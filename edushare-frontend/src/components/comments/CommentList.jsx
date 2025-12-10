@@ -1,5 +1,6 @@
 // src/components/comments/CommentList.jsx
 import { useState } from "react";
+import { useAuth } from "../../context/AuthContext";
 
 export function CommentList({
   comments,
@@ -7,6 +8,8 @@ export function CommentList({
   onUpdateComment,
   onDeleteComment,
 }) {
+  const { user } = useAuth(); // user đang đăng nhập (có id, username, email...)
+
   const [editingId, setEditingId] = useState(null);
   const [editingContent, setEditingContent] = useState("");
 
@@ -37,7 +40,29 @@ export function CommentList({
     setReplyToId(null);
   };
 
-  const getAuthorName = (c) => c.authorName || c.author?.name || "Unknown";
+  // LẤY TÊN TÁC GIẢ: chỉ dựa trên dữ liệu backend trả về
+  const getAuthorName = (c) =>
+    c.authorName ||
+    c.author?.username ||
+    c.author?.name ||
+    c.username ||
+    c.userName ||
+    (c.author?.email ? c.author.email.split("@")[0] : "") ||
+    "Unknown";
+
+  // Xác định đây có phải comment của chính user đang đăng nhập không
+  const isOwnComment = (c) => {
+    if (!user) return false;
+    const myId = user.id;
+    if (!myId) return false;
+
+    // các khả năng backend/front-end lưu id
+    const candidateIds = [c.author?.id, c.authorId, c.userId, c.user_id].filter(
+      Boolean
+    );
+
+    return candidateIds.includes(myId);
+  };
 
   if (!comments || comments.length === 0) {
     return <p>No comments yet. Be the first to comment!</p>;
@@ -83,11 +108,12 @@ export function CommentList({
     const timeAgo = c.timeAgo || "";
     const isEditing = editingId === c.id;
     const isReplyBoxOpen = replyToId === c.id;
+    const own = isOwnComment(c); // true nếu là comment của mình
 
     return (
       <div key={c.id} className="comment-row" style={{ display: "flex" }}>
         <div className="comment-avatar">
-          {(authorName[0] || "U").toUpperCase()}
+          {(authorName?.[0] || "U").toUpperCase()}
         </div>
 
         <div className="comment-body">
@@ -141,6 +167,7 @@ export function CommentList({
               </p>
 
               <div style={{ marginTop: 4, display: "flex", gap: 8 }}>
+                {/* Ai cũng có thể Reply (backend đã chặn nếu chưa login) */}
                 <button
                   type="button"
                   onClick={() => setReplyToId(c.id)}
@@ -156,35 +183,40 @@ export function CommentList({
                   Reply
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => startEdit(c)}
-                  style={{
-                    padding: "4px 8px",
-                    borderRadius: 999,
-                    border: "1px solid #d1d5db",
-                    backgroundColor: "#fff",
-                    fontSize: 12,
-                    cursor: "pointer",
-                  }}
-                >
-                  Edit
-                </button>
+                {/* Chỉ chủ comment mới thấy Edit / Delete */}
+                {own && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => startEdit(c)}
+                      style={{
+                        padding: "4px 8px",
+                        borderRadius: 999,
+                        border: "1px solid #d1d5db",
+                        backgroundColor: "#fff",
+                        fontSize: 12,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Edit
+                    </button>
 
-                <button
-                  type="button"
-                  onClick={() => onDeleteComment(c.id)}
-                  style={{
-                    padding: "4px 8px",
-                    borderRadius: 999,
-                    border: "1px solid #fecaca",
-                    backgroundColor: "#fee2e2",
-                    fontSize: 12,
-                    cursor: "pointer",
-                  }}
-                >
-                  Delete
-                </button>
+                    <button
+                      type="button"
+                      onClick={() => onDeleteComment(c.id)}
+                      style={{
+                        padding: "4px 8px",
+                        borderRadius: 999,
+                        border: "1px solid #fecaca",
+                        backgroundColor: "#fee2e2",
+                        fontSize: 12,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </>
+                )}
               </div>
             </>
           )}
@@ -255,8 +287,6 @@ export function CommentList({
           <li
             key={root.id}
             className="comment-item"
-            /* ép hiển thị theo chiều dọc:
-               root comment ở trên, replies ở DƯỚI và thụt vào phải  */
             style={{
               display: "block",
               marginBottom: 16,
