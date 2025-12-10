@@ -121,7 +121,7 @@ export async function createComment(
   const body = {
     author: {
       id: authorId,
-      name: authorName,
+      username: authorName,
     },
     content,
     parentId,

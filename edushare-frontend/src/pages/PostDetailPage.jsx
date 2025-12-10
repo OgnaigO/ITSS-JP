@@ -12,10 +12,12 @@ import {
 import { CommentList } from "../components/comments/CommentList";
 import { CommentForm } from "../components/comments/CommentForm";
 import EditPostModal from "../components/posts/EditPostModal";
+import { useAuth } from "../context/AuthContext";
 
 export default function PostDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [post, setPost] = useState(null);
   const [comments, setComments] = useState([]);
@@ -48,37 +50,53 @@ export default function PostDetailPage() {
     load();
   }, [id]);
 
-  // Tạo comment gốc (parentId = null)
+  const reloadComments = async () => {
+    const updatedPost = await fetchPostById(id);
+    setPost(updatedPost);
+    setComments(updatedPost.comments || []);
+  };
+
+  // ====== TẠO COMMENT GỐC (parentId = null) ======
   const handleCreateComment = async (content) => {
     try {
+      if (!user) {
+        alert("Please log in to comment.");
+        return;
+      }
+
       await createComment(id, {
         content,
-        authorId: "t001", // tạm hard-code
-        authorName: "Tanaka Sensei",
         parentId: null,
+        authorId: user.id,
+        authorName: user.username || user.email,
+        username: user.username,
+        email: user.email,
       });
 
-      const updatedPost = await fetchPostById(id);
-      setPost(updatedPost);
-      setComments(updatedPost.comments || []);
+      await reloadComments();
     } catch (e) {
       console.error(e);
     }
   };
 
-  // Tạo reply cho 1 comment
+  // ====== TẠO REPLY ======
   const handleCreateReply = async (parentId, content) => {
     try {
+      if (!user) {
+        alert("Please log in to reply.");
+        return;
+      }
+
       await createComment(id, {
         content,
-        authorId: "t001",
-        authorName: "Tanaka Sensei",
         parentId,
+        authorId: user.id,
+        authorName: user.username || user.email,
+        username: user.username,
+        email: user.email,
       });
 
-      const updatedPost = await fetchPostById(id);
-      setPost(updatedPost);
-      setComments(updatedPost.comments || []);
+      await reloadComments();
     } catch (e) {
       console.error(e);
     }
@@ -102,7 +120,7 @@ export default function PostDetailPage() {
 
     try {
       await deletePost(id);
-      navigate("/my-posts"); // hoặc "/"
+      navigate("/my-posts");
     } catch (e) {
       console.error(e);
     }
@@ -112,9 +130,7 @@ export default function PostDetailPage() {
   const handleUpdateComment = async (commentId, newContent) => {
     try {
       await updateComment(id, commentId, newContent);
-      const updatedPost = await fetchPostById(id);
-      setPost(updatedPost);
-      setComments(updatedPost.comments || []);
+      await reloadComments();
     } catch (e) {
       console.error(e);
     }
@@ -127,9 +143,7 @@ export default function PostDetailPage() {
 
     try {
       await deleteComment(id, commentId);
-      const updatedPost = await fetchPostById(id);
-      setPost(updatedPost);
-      setComments(updatedPost.comments || []);
+      await reloadComments();
     } catch (e) {
       console.error(e);
     }
@@ -138,8 +152,14 @@ export default function PostDetailPage() {
   if (loading) return <div>Loading...</div>;
   if (!post) return <div>Post not found</div>;
 
-  // Lấy tên tác giả & initials
-  const authorName = post.authorName || post.author?.name || "Unknown";
+  // ====== TÍNH TÊN TÁC GIẢ HIỂN THỊ ======
+  const authorName =
+    post.authorName ||
+    post.author?.username ||
+    (post.author?.email ? post.author.email.split("@")[0] : "") ||
+    post.author?.name ||
+    "Unknown";
+
   const authorInitials =
     post.authorInitials ||
     authorName
@@ -148,6 +168,25 @@ export default function PostDetailPage() {
       .map((w) => w[0])
       .join("")
       .toUpperCase();
+
+  const authDisplayName =
+    user?.username || (user?.email ? user.email.split("@")[0] : "");
+
+  const normalize = (s = "") => s.toString().toLowerCase().replace(/\s+/g, "");
+
+  // ====== CHỈ CHỦ BÀI VIẾT MỚI ĐƯỢC EDIT/DELETE ======
+  const isOwner =
+    !!user && // so sánh theo id / username / email / authorName (bỏ khoảng trắng, không phân biệt hoa thường)
+    ((post.author?.id && user.id && post.author.id === user.id) ||
+      (post.author?.username &&
+        user.username &&
+        normalize(post.author.username) === normalize(user.username)) ||
+      (post.author?.email &&
+        user.email &&
+        post.author.email.toLowerCase() === user.email.toLowerCase()) ||
+      (post.authorName &&
+        authDisplayName &&
+        normalize(post.authorName) === normalize(authDisplayName)));
 
   return (
     <div className="page post-detail">
@@ -160,36 +199,38 @@ export default function PostDetailPage() {
           </div>
           <span className="tag">{post.category}</span>
 
-          {/* Nút Edit / Delete post */}
-          <div style={{ marginLeft: "auto", display: "flex", gap: "8px" }}>
-            <button
-              type="button"
-              className="btn-primary"
-              onClick={() => setIsEditOpen(true)}
-            >
-              Edit
-            </button>
-            <button
-              type="button"
-              style={{
-                padding: "8px 12px",
-                borderRadius: 999,
-                border: "1px solid #fecaca",
-                backgroundColor: "#fee2e2",
-                fontSize: 13,
-                cursor: "pointer",
-              }}
-              onClick={handleDeletePost}
-            >
-              Delete
-            </button>
-          </div>
+          {/* Nút Edit / Delete post chỉ hiện nếu là owner */}
+          {isOwner && (
+            <div style={{ marginLeft: "auto", display: "flex", gap: "8px" }}>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => setIsEditOpen(true)}
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: 999,
+                  border: "1px solid #fecaca",
+                  backgroundColor: "#fee2e2",
+                  fontSize: 13,
+                  cursor: "pointer",
+                }}
+                onClick={handleDeletePost}
+              >
+                Delete
+              </button>
+            </div>
+          )}
         </div>
 
         <h1>{post.title}</h1>
         <p className="post-description-full">{post.description}</p>
 
-        {/* ======= SLIDES SECTION (preview ngay trên trang) ======= */}
+        {/* ======= SLIDES SECTION ======= */}
         {post.slideUrls && post.slideUrls.length > 0 && (
           <section className="slides-section">
             <h2>Slides</h2>
@@ -243,10 +284,8 @@ export default function PostDetailPage() {
         <section className="comments-section">
           <h2>Comments ({comments.length})</h2>
 
-          {/* Form comment gốc */}
           <CommentForm onSubmit={handleCreateComment} />
 
-          {/* List comment + reply inline */}
           <CommentList
             comments={comments}
             onCreateReply={handleCreateReply}
@@ -272,7 +311,6 @@ export default function PostDetailPage() {
         </div>
       </aside>
 
-      {/* Modal sửa bài viết */}
       <EditPostModal
         isOpen={isEditOpen}
         post={post}

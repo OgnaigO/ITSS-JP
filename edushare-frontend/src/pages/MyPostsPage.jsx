@@ -2,11 +2,12 @@
 import { useEffect, useState } from "react";
 import { fetchPosts } from "../api/postsApi";
 import PostCard from "../components/posts/PostCard";
-
-const currentUserId = "demo-user-id"; // TODO: lấy từ auth
+import { useAuth } from "../context/AuthContext";
 
 export default function MyPostsPage({ externalSearch = "", reloadFlag = 0 }) {
-  // TOÀN bộ bài viết của user hiện tại
+  const { user } = useAuth();
+
+  // TOÀN bộ bài viết (sau khi lọc theo user)
   const [allPosts, setAllPosts] = useState([]);
 
   // Bài viết đang hiển thị ở trang hiện tại
@@ -24,7 +25,53 @@ export default function MyPostsPage({ externalSearch = "", reloadFlag = 0 }) {
   // search theo title lấy từ header
   const titleFilter = externalSearch || "";
 
-  // --------- 1. Lấy toàn bộ bài viết của user ----------
+  // ===== helper so khớp owner =====
+  const normalize = (s = "") => s.toString().toLowerCase().replace(/\s+/g, "");
+
+  const isOwner = (post) => {
+    if (!user) return false;
+
+    const author = post.author || {};
+    const currentId = user.id;
+    const currentUsername = user.username;
+    const currentEmail = user.email;
+    const currentDisplay =
+      currentUsername || (currentEmail ? currentEmail.split("@")[0] : "");
+
+    // 1. so id
+    if (author.id && currentId && author.id === currentId) return true;
+
+    // 2. so username
+    if (
+      author.username &&
+      currentUsername &&
+      normalize(author.username) === normalize(currentUsername)
+    ) {
+      return true;
+    }
+
+    // 3. so email
+    if (
+      author.email &&
+      currentEmail &&
+      author.email.toLowerCase() === currentEmail.toLowerCase()
+    ) {
+      return true;
+    }
+
+    // 4. so với authorName (lúc tạo post từ modal)
+    if (
+      post.authorName &&
+      currentDisplay &&
+      normalize(post.authorName) === normalize(currentDisplay)
+    ) {
+      return true;
+    }
+
+    return false;
+  };
+
+  // --------- 1. Lấy toàn bộ bài viết từ backend ----------
   useEffect(() => {
     async function load() {
       setLoading(true);
@@ -32,31 +79,38 @@ export default function MyPostsPage({ externalSearch = "", reloadFlag = 0 }) {
         const data = await fetchPosts({
           page: 0,
           size: 1000, // đủ lớn cho bài tập
-          authorId: currentUserId,
+          // authorId gửi lên cũng được nhưng backend hiện chưa dùng
         });
 
-        const items = Array.isArray(data.content) ? data.content : data;
-        setAllPosts(items || []);
+        const items = Array.isArray(data.content) ? data.content : data || [];
+
+        // Lọc lại: chỉ lấy bài của user đang đăng nhập
+        const mine = items.filter(isOwner);
+
+        setAllPosts(mine);
       } catch (err) {
         console.error("Failed to load my posts", err);
+        setAllPosts([]);
       } finally {
         setLoading(false);
       }
     }
 
-    load();
-  }, [reloadFlag, tab]);
+    // nếu chưa login thì không cần gọi, hoặc gọi nhưng sẽ filter ra rỗng
+    if (user) {
+      load();
+    } else {
+      setAllPosts([]);
+      setLoading(false);
+    }
+  }, [reloadFlag, tab, user]); // user đổi (login/logout) thì reload
 
   // Khi search thay đổi thì quay về trang 1
   useEffect(() => {
     setPage(0);
   }, [externalSearch]);
 
-  // so sánh chuỗi không phân biệt hoa/thường
-  const compareStrings = (a = "", b = "") =>
-    a.toString().toLowerCase().localeCompare(b.toString().toLowerCase());
-
-  // --------- 2. Filter + sort (mặc định newest) + cắt trang ----------
+  // --------- 2. Filter + sort + cắt trang ----------
   useEffect(() => {
     let data = [...allPosts];
 
@@ -72,8 +126,7 @@ export default function MyPostsPage({ externalSearch = "", reloadFlag = 0 }) {
     data.sort((a, b) => {
       const da = a.createdAt ? new Date(a.createdAt).getTime() : 0;
       const db = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      // newest first
-      return db - da;
+      return db - da; // newest first
     });
 
     const total = data.length;
@@ -121,9 +174,10 @@ export default function MyPostsPage({ externalSearch = "", reloadFlag = 0 }) {
         </button>
       </div>
 
-      {/* Grid giống HomePage: bỏ single-column để nó auto-fill nhiều cột */}
       {loading ? (
         <div>Loading...</div>
+      ) : !user ? (
+        <div>Please log in to see your posts.</div>
       ) : posts.length === 0 ? (
         <div>No posts found.</div>
       ) : (
@@ -134,7 +188,6 @@ export default function MyPostsPage({ externalSearch = "", reloadFlag = 0 }) {
         </div>
       )}
 
-      {/* Phân trang giống HomePage */}
       <div className="pagination">
         <button
           type="button"

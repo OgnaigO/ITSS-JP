@@ -6,8 +6,11 @@ import HomePage from "./pages/HomePage";
 import MyPostsPage from "./pages/MyPostsPage";
 import PostDetailPage from "./pages/PostDetailPage";
 import PostModal from "./components/posts/PostModal";
+import LoginPage from "./pages/LoginPage";
+import RegisterPage from "./pages/RegisterPage";
+import { AuthProvider } from "./context/AuthContext";
 
-export default function App() {
+function AppInner() {
   const [isPostModalOpen, setPostModalOpen] = useState(false);
 
   // text trong ô "Search posts..." trên header
@@ -31,7 +34,7 @@ export default function App() {
         searchValue={searchText}
         onSearchChange={handleSearchChange}
         onSearchSubmit={() => {
-          // hiện tại HomePage/MyPostsPage filter realtime nên không cần làm gì thêm
+          // HomePage/MyPostsPage filter realtime nên không cần làm gì thêm
         }}
         onOpenPostModal={() => setPostModalOpen(true)}
       />
@@ -64,8 +67,18 @@ export default function App() {
             }
           />
           <Route path="/posts/:id" element={<PostDetailPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
         </Routes>
       </main>
     </>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppInner />
+    </AuthProvider>
   );
 }
