@@ -1,5 +1,17 @@
 // src/components/posts/PostCard.jsx
 import { Link } from "react-router-dom";
+import thumbBiology from "../../assets/thumb-biology.jpg";
+import thumbMath from "../../assets/thumb-math.jpg";
+import thumbHistory from "../../assets/thumb-history.jpg";
+
+import defaultThumb from "../../assets/thumb-math.jpg";
+
+// Map category -> ảnh
+const SUBJECT_THUMBNAILS = {
+  Biology: thumbBiology,
+  Mathematics: thumbMath,
+  History: thumbHistory,
+};
 
 export default function PostCard({ post }) {
   // Ưu tiên nhiều nguồn tên khác nhau
@@ -18,9 +30,19 @@ export default function PostCard({ post }) {
       .join("")
       .toUpperCase();
 
+  // Lấy thumbnail theo category
+  const thumbnailSrc = SUBJECT_THUMBNAILS[post.category] || defaultThumb;
+
   return (
     <Link to={`/posts/${post.id}`} className="post-card">
-      <div className="post-card-image-placeholder" />
+      {/* ẢNH THUMBNAIL */}
+      <div className="post-card-image-wrapper">
+        <img
+          src={thumbnailSrc}
+          alt={post.category || "Slide thumbnail"}
+          className="post-card-image"
+        />
+      </div>
 
       <div className="post-card-body">
         <div className="post-card-meta">
