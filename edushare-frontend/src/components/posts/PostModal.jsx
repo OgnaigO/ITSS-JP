@@ -1,7 +1,10 @@
 import { useState, useEffect } from "react";
 import { createPost } from "../../api/postsApi";
+import { useAuth } from "../../context/AuthContext";
 
 export default function PostModal({ isOpen, onClose, onCreated }) {
+  const { user } = useAuth();
+
   const [title, setTitle] = useState("");
   const [subject, setSubject] = useState("");
   const [description, setDescription] = useState("");
@@ -24,8 +27,17 @@ export default function PostModal({ isOpen, onClose, onCreated }) {
       // revoke các object URL cũ
       slidePreviews.forEach((p) => URL.revokeObjectURL(p.url));
       setSlidePreviews([]);
+    } else {
+      // khi mở modal, auto set Author Name = username / email
+      if (user) {
+        const displayName =
+          user.username || (user.email ? user.email.split("@")[0] : "");
+        setAuthorName(displayName);
+      } else {
+        setAuthorName("");
+      }
     }
-  }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isOpen, user]);
 
   if (!isOpen) return null;
 
@@ -108,6 +120,7 @@ export default function PostModal({ isOpen, onClose, onCreated }) {
               onChange={(e) => setAuthorName(e.target.value)}
               placeholder="Your name"
               required
+              disabled={!!user}
             />
           </label>
 
