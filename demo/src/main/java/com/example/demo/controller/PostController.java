@@ -84,12 +84,12 @@ public class PostController {
             @RequestParam String description,
             @RequestParam String category,
             @RequestParam String authorName,
+            @RequestPart("thumbnail") MultipartFile thumbnail,
             @RequestPart("slides") List<MultipartFile> slides
     ) throws IOException {
 
         return postService.createPostWithFiles(
-                title, description, category, authorName, slides
+                title, description, category, authorName, thumbnail, slides
         );
     }
-
 }

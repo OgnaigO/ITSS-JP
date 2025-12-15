@@ -20,6 +20,8 @@ public class Post {
 
     private List<String> slideUrls = new ArrayList<>();
 
+    private String thumbnailUrl;
+
     private User author;
 
     private String category;
