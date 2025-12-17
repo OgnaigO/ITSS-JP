@@ -48,6 +48,7 @@ export async function createPost({
   description,
   category,
   authorName,
+  thumbnailFile,
   slideFiles = [],
 }) {
   const formData = new FormData();
@@ -56,6 +57,10 @@ export async function createPost({
   formData.append("description", description);
   formData.append("category", category);
   formData.append("authorName", authorName || "Anonymous");
+
+  if (thumbnailFile) {
+    formData.append("thumbnail", thumbnailFile);
+  }
 
   // Gửi nhiều file với cùng key "slides"
   slideFiles.forEach((file) => {
@@ -160,4 +165,18 @@ export async function deleteComment(postId, commentId) {
     method: "DELETE",
   });
   if (!res.ok) throw new Error("Failed to delete comment");
+}
+
+// ===== AI Explain =====
+export async function explainPost(postId, level) {
+  const params = new URLSearchParams();
+  if (level) params.append("level", level);
+
+  const url = `${API_BASE}/ai/posts/${postId}/explain${
+    params.toString() ? `?${params.toString()}` : ""
+  }`;
+
+  const res = await fetch(url, { method: "POST" });
+  if (!res.ok) throw new Error("Failed to explain post");
+  return res.json(); // { summary, explanation, key_points, suggested_tags }
 }
