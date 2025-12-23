@@ -8,6 +8,7 @@ import {
   deletePost,
   updateComment,
   deleteComment,
+  explainPost, // ✅ thêm
 } from "../api/postsApi";
 import { CommentList } from "../components/comments/CommentList";
 import { CommentForm } from "../components/comments/CommentForm";
@@ -15,6 +16,7 @@ import EditPostModal from "../components/posts/EditPostModal";
 import { useAuth } from "../context/AuthContext";
 
 export default function PostDetailPage() {
+  // ✅ HOOKS luôn nằm trên cùng, không đặt sau return
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -24,30 +26,55 @@ export default function PostDetailPage() {
   const [loading, setLoading] = useState(true);
   const [isEditOpen, setIsEditOpen] = useState(false);
 
+  // ===== AI states =====
+  const [aiLevel, setAiLevel] = useState("basic");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState("");
+  const [aiData, setAiData] = useState(null);
+
   // --------- helper cho slide ----------
   const getFileName = (url = "") => {
     const parts = url.split("/");
     return parts[parts.length - 1] || url;
   };
-
   const isImage = (url = "") => /\.(png|jpe?g|gif|webp)$/i.test(url);
   const isPdf = (url = "") => /\.pdf$/i.test(url);
 
-  // Load post + comments khi vào trang
+  const normalize = (s = "") => s.toString().toLowerCase().replace(/\s+/g, "");
+
+  // ✅ Owner check: ưu tiên ID/username/email (authorName chỉ là hiển thị)
+  const isOwner =
+    !!user &&
+    ((post?.author?.id && user?.id && post.author.id === user.id) ||
+      (post?.author?.username &&
+        user?.username &&
+        normalize(post.author.username) === normalize(user.username)) ||
+      (post?.author?.email &&
+        user?.email &&
+        post.author.email.toLowerCase() === user.email.toLowerCase()));
+
+  // ====== Load post + comments khi vào trang ======
   useEffect(() => {
+    let alive = true;
+
     async function load() {
       setLoading(true);
       try {
         const postData = await fetchPostById(id);
+        if (!alive) return;
         setPost(postData);
         setComments(postData.comments || []);
       } catch (e) {
         console.error(e);
       } finally {
-        setLoading(false);
+        if (alive) setLoading(false);
       }
     }
+
     load();
+    return () => {
+      alive = false;
+    };
   }, [id]);
 
   const reloadComments = async () => {
@@ -56,7 +83,7 @@ export default function PostDetailPage() {
     setComments(updatedPost.comments || []);
   };
 
-  // ====== TẠO COMMENT GỐC (parentId = null) ======
+  // ====== TẠO COMMENT GỐC ======
   const handleCreateComment = async (content) => {
     try {
       if (!user) {
@@ -102,7 +129,7 @@ export default function PostDetailPage() {
     }
   };
 
-  // Lưu thay đổi bài viết (PUT /api/posts/{id})
+  // ====== Update/Delete post (chỉ UI chặn, backend vẫn nên chặn nữa) ======
   const handleSavePost = async (payload) => {
     try {
       const updated = await updatePost(id, payload);
@@ -113,7 +140,6 @@ export default function PostDetailPage() {
     }
   };
 
-  // Xoá bài viết (DELETE /api/posts/{id})
   const handleDeletePost = async () => {
     const ok = window.confirm("Are you sure you want to delete this post?");
     if (!ok) return;
@@ -126,7 +152,7 @@ export default function PostDetailPage() {
     }
   };
 
-  // Sửa comment
+  // ====== Update/Delete comment ======
   const handleUpdateComment = async (commentId, newContent) => {
     try {
       await updateComment(id, commentId, newContent);
@@ -136,7 +162,6 @@ export default function PostDetailPage() {
     }
   };
 
-  // Xoá comment
   const handleDeleteComment = async (commentId) => {
     const ok = window.confirm("Are you sure you want to delete this comment?");
     if (!ok) return;
@@ -149,6 +174,22 @@ export default function PostDetailPage() {
     }
   };
 
+  // ====== AI Explain call ======
+  const handleExplain = async () => {
+    try {
+      setAiError("");
+      setAiLoading(true);
+      const data = await explainPost(id, aiLevel);
+      setAiData(data);
+    } catch (e) {
+      console.error(e);
+      setAiError("AI explain failed. Please try again.");
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  // ✅ Từ đây trở xuống mới return (không còn hook nào)
   if (loading) return <div>Loading...</div>;
   if (!post) return <div>Post not found</div>;
 
@@ -161,45 +202,27 @@ export default function PostDetailPage() {
     "Unknown";
 
   const authorInitials =
-    post.authorInitials ||
     authorName
       .split(" ")
       .filter(Boolean)
       .map((w) => w[0])
       .join("")
-      .toUpperCase();
-
-  const authDisplayName =
-    user?.username || (user?.email ? user.email.split("@")[0] : "");
-
-  const normalize = (s = "") => s.toString().toLowerCase().replace(/\s+/g, "");
-
-  // ====== CHỈ CHỦ BÀI VIẾT MỚI ĐƯỢC EDIT/DELETE ======
-  const isOwner =
-    !!user && // so sánh theo id / username / email / authorName (bỏ khoảng trắng, không phân biệt hoa thường)
-    ((post.author?.id && user.id && post.author.id === user.id) ||
-      (post.author?.username &&
-        user.username &&
-        normalize(post.author.username) === normalize(user.username)) ||
-      (post.author?.email &&
-        user.email &&
-        post.author.email.toLowerCase() === user.email.toLowerCase()) ||
-      (post.authorName &&
-        authDisplayName &&
-        normalize(post.authorName) === normalize(authDisplayName)));
+      .toUpperCase() || "U";
 
   return (
     <div className="page post-detail">
       <main className="post-detail-main">
         <div className="post-meta-top">
-          <div className="avatar-circle">{authorInitials || "U"}</div>
+          <div className="avatar-circle">{authorInitials}</div>
+
           <div>
             <div className="author-name">{authorName}</div>
             <div className="time-ago">{post.timeAgo}</div>
           </div>
+
           <span className="tag">{post.category}</span>
 
-          {/* Nút Edit / Delete post chỉ hiện nếu là owner */}
+          {/* ✅ Nút Edit/Delete chỉ hiện khi là owner */}
           {isOwner && (
             <div style={{ marginLeft: "auto", display: "flex", gap: "8px" }}>
               <button
@@ -295,19 +318,71 @@ export default function PostDetailPage() {
         </section>
       </main>
 
+      {/* ===== AI SIDEBAR (gắn API mới) ===== */}
       <aside className="post-detail-sidebar">
         <div className="ai-suggestions-card">
-          <h3>AI Teaching Suggestions</h3>
-          <h4>Use Visual Analogies</h4>
-          <p>
-            Compare chloroplasts to solar panels and mitochondria to
-            batteries...
-          </p>
-          <h4>Hands-On Activity</h4>
-          <p>
-            Try the celery experiment with colored water to show how plants
-            transport nutrients...
-          </p>
+          <h3>AI Explain</h3>
+
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <select
+              value={aiLevel}
+              onChange={(e) => setAiLevel(e.target.value)}
+              style={{ padding: 8, borderRadius: 10 }}
+            >
+              <option value="basic">basic</option>
+              <option value="intermediate">intermediate</option>
+              <option value="advanced">advanced</option>
+            </select>
+
+            <button
+              className="btn-primary"
+              type="button"
+              onClick={handleExplain}
+              disabled={aiLoading}
+            >
+              {aiLoading ? "Generating..." : "Generate"}
+            </button>
+          </div>
+
+          {aiError && (
+            <p style={{ marginTop: 10, color: "crimson" }}>{aiError}</p>
+          )}
+
+          {aiData && (
+            <div style={{ marginTop: 12 }}>
+              <h4>Summary</h4>
+              <p>{aiData.summary}</p>
+
+              <h4>Explanation</h4>
+              <p style={{ whiteSpace: "pre-wrap" }}>{aiData.explanation}</p>
+
+              {Array.isArray(aiData.key_points) &&
+                aiData.key_points.length > 0 && (
+                  <>
+                    <h4>Key points</h4>
+                    <ul>
+                      {aiData.key_points.map((k, idx) => (
+                        <li key={idx}>{k}</li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+
+              {Array.isArray(aiData.suggested_tags) &&
+                aiData.suggested_tags.length > 0 && (
+                  <>
+                    <h4>Suggested tags</h4>
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      {aiData.suggested_tags.map((t, idx) => (
+                        <span key={idx} className="tag tag-green">
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                  </>
+                )}
+            </div>
+          )}
         </div>
       </aside>
 
