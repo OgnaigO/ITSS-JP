@@ -24,4 +24,12 @@ public class User {
     private String role;       // "TEACHER", "STUDENT"
 
     private String school;
+
+    private String bio;
+
+    private String phone;
+
+    private String address;
+
+    private String avatarUrl;
 }

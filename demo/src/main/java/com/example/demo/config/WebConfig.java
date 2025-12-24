@@ -12,6 +12,8 @@ public class WebConfig implements WebMvcConfigurer {
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         registry.addResourceHandler("/slides/**")
                 .addResourceLocations("file:target/uploads/slides/");
+        registry.addResourceHandler("/avatars/**")
+                .addResourceLocations("file:uploads/avatars/");
     }
 
     @Override
