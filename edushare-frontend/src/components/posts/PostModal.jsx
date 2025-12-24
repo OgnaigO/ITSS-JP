@@ -1,3 +1,4 @@
+// src/components/posts/PostModal.jsx
 import { useState, useEffect } from "react";
 import { createPost } from "../../api/postsApi";
 import { useAuth } from "../../context/AuthContext";
@@ -9,6 +10,9 @@ export default function PostModal({ isOpen, onClose, onCreated }) {
   const [subject, setSubject] = useState("");
   const [description, setDescription] = useState("");
   const [authorName, setAuthorName] = useState("");
+
+  const [thumbnailFile, setThumbnailFile] = useState(null);
+  const [thumbnailPreviewUrl, setThumbnailPreviewUrl] = useState("");
 
   const [slideFiles, setSlideFiles] = useState([]); // mảng file thật để gửi BE
   const [slidePreviews, setSlidePreviews] = useState([]); // mảng info để preview
@@ -23,8 +27,13 @@ export default function PostModal({ isOpen, onClose, onCreated }) {
       setDescription("");
       setAuthorName("");
       setSlideFiles([]);
+      setThumbnailFile(null);
 
-      // revoke các object URL cũ
+      // revoke thumbnail preview
+      if (thumbnailPreviewUrl) URL.revokeObjectURL(thumbnailPreviewUrl);
+      setThumbnailPreviewUrl("");
+
+      // revoke slide previews
       slidePreviews.forEach((p) => URL.revokeObjectURL(p.url));
       setSlidePreviews([]);
     } else {
@@ -37,9 +46,25 @@ export default function PostModal({ isOpen, onClose, onCreated }) {
         setAuthorName("");
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, user]);
 
   if (!isOpen) return null;
+
+  const handleThumbnailChange = (e) => {
+    const file = e.target.files?.[0] || null;
+
+    // revoke preview cũ
+    if (thumbnailPreviewUrl) URL.revokeObjectURL(thumbnailPreviewUrl);
+
+    setThumbnailFile(file);
+
+    if (file) {
+      setThumbnailPreviewUrl(URL.createObjectURL(file));
+    } else {
+      setThumbnailPreviewUrl("");
+    }
+  };
 
   const handleSlidesChange = (e) => {
     const files = Array.from(e.target.files || []);
@@ -67,14 +92,17 @@ export default function PostModal({ isOpen, onClose, onCreated }) {
       const newPost = await createPost({
         title,
         description,
-        category: subject,
+        category: subject, // backend dùng field category
         authorName,
+        thumbnailFile, // ✅ thêm thumbnail
         slideFiles,
       });
+
       onCreated?.(newPost);
       onClose();
-    } catch (e) {
-      console.error(e);
+    } catch (err) {
+      console.error(err);
+      alert("Post failed. Please check backend logs / network tab.");
     } finally {
       setSubmitting(false);
     }
@@ -88,6 +116,7 @@ export default function PostModal({ isOpen, onClose, onCreated }) {
           Share a slide that's difficult to explain and get AI suggestions and
           advice from fellow teachers.
         </p>
+
         <form onSubmit={handleSubmit} className="modal-form">
           <label>
             Title *
@@ -134,8 +163,30 @@ export default function PostModal({ isOpen, onClose, onCreated }) {
             />
           </label>
 
+          {/* ✅ THUMBNAIL */}
           <label>
-            Slide Images (you can select multiple files)
+            Thumbnail Image (1 file)
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleThumbnailChange}
+            />
+          </label>
+
+          {thumbnailPreviewUrl && (
+            <div className="slides-preview-item" style={{ marginTop: 8 }}>
+              <div className="slides-preview-title">Thumbnail preview</div>
+              <img
+                src={thumbnailPreviewUrl}
+                alt="thumbnail preview"
+                className="slides-preview-img"
+              />
+            </div>
+          )}
+
+          {/* SLIDES */}
+          <label>
+            Slide Files (you can select multiple files)
             <input
               type="file"
               accept=".pdf,image/*"
