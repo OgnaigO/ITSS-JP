@@ -13,6 +13,7 @@ export async function fetchPosts({
   category,
   title,
   authorId,
+  userId, // ✅ Backend dùng userId parameter
 } = {}) {
   const params = new URLSearchParams();
 
@@ -24,7 +25,9 @@ export async function fetchPosts({
   if (direction) params.append("direction", direction);
   if (category) params.append("category", category);
   if (title) params.append("title", title);
-  if (authorId) params.append("authorId", authorId);
+  // ✅ Backend dùng userId, nhưng vẫn hỗ trợ authorId để tương thích
+  if (userId) params.append("userId", userId);
+  if (authorId && !userId) params.append("userId", authorId); // map authorId -> userId
 
   const res = await fetch(`${API_BASE}/posts/filter?${params.toString()}`);
   if (!res.ok) throw new Error("Failed to fetch posts");
@@ -47,6 +50,7 @@ export async function createPost({
   title,
   description,
   category,
+  authorId,
   authorName,
   thumbnailFile,
   slideFiles = [],
@@ -56,6 +60,9 @@ export async function createPost({
   formData.append("title", title);
   formData.append("description", description);
   formData.append("category", category);
+  if (authorId) {
+    formData.append("authorId", authorId);
+  }
   formData.append("authorName", authorName || "Anonymous");
 
   if (thumbnailFile) {

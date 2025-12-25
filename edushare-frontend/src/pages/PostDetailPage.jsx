@@ -14,12 +14,18 @@ import { CommentList } from "../components/comments/CommentList";
 import { CommentForm } from "../components/comments/CommentForm";
 import EditPostModal from "../components/posts/EditPostModal";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
+import { useNotifications } from "../context/NotificationContext";
+import { getAvatarUrl } from "../utils/avatarUtils";
+import { getTranslatedPostContent } from "../translations/postContentTranslations";
 
 export default function PostDetailPage() {
   // ✅ HOOKS luôn nằm trên cùng, không đặt sau return
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { language, t } = useLanguage();
+  const { addNotification, addNotificationForUser } = useNotifications();
 
   const [post, setPost] = useState(null);
   const [comments, setComments] = useState([]);
@@ -27,7 +33,7 @@ export default function PostDetailPage() {
   const [isEditOpen, setIsEditOpen] = useState(false);
 
   // ===== AI states =====
-  const [aiLevel, setAiLevel] = useState("basic");
+  const aiLevel = "basic"; // ✅ Cố định là basic, không cho user chọn
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState("");
   const [aiData, setAiData] = useState(null);
@@ -100,6 +106,32 @@ export default function PostDetailPage() {
         email: user.email,
       });
 
+      // Tạo notification cho chủ bài viết (nếu không phải chính mình comment)
+      if (post && !isOwner && post.author) {
+        // Kiểm tra cài đặt thông báo bình luận của chủ bài post
+        // Note: Ta kiểm tra settings của chủ bài post, nhưng vì ta không có access,
+        // ta sẽ giả sử nó được bật (hoặc có thể kiểm tra từ một nguồn chung)
+        const commenterName = user.username || user.email;
+        const translatedTitle = getTranslatedPostContent(post.title, "title", language);
+        const displayTitle = translatedTitle || post.title;
+        
+        // Lấy ID hoặc username của chủ bài post để lưu notification
+        const postOwnerId = post.author.id || post.author.username;
+        
+        if (postOwnerId) {
+          addNotificationForUser(postOwnerId, {
+            type: "comment",
+            title: language === "Vietnamese" 
+              ? `${commenterName} đã bình luận`
+              : `${commenterName}がコメントしました`,
+            message: language === "Vietnamese"
+              ? `"${displayTitle}"`
+              : `「${displayTitle}」`,
+            link: `/posts/${id}`,
+          });
+        }
+      }
+
       await reloadComments();
     } catch (e) {
       console.error(e);
@@ -122,6 +154,29 @@ export default function PostDetailPage() {
         username: user.username,
         email: user.email,
       });
+
+      // Tạo notification cho chủ bài viết (nếu không phải chính mình reply)
+      if (post && !isOwner && post.author) {
+        // Lấy ID hoặc username của chủ bài post để lưu notification
+        const commenterName = user.username || user.email;
+        const translatedTitle = getTranslatedPostContent(post.title, "title", language);
+        const displayTitle = translatedTitle || post.title;
+        
+        const postOwnerId = post.author.id || post.author.username;
+        
+        if (postOwnerId) {
+          addNotificationForUser(postOwnerId, {
+            type: "comment",
+            title: language === "Vietnamese" 
+              ? `${commenterName} đã trả lời bình luận`
+              : `${commenterName}がコメントに返信しました`,
+            message: language === "Vietnamese"
+              ? `"${displayTitle}"`
+              : `「${displayTitle}」`,
+            link: `/posts/${id}`,
+          });
+        }
+      }
 
       await reloadComments();
     } catch (e) {
@@ -194,12 +249,22 @@ export default function PostDetailPage() {
   if (!post) return <div>Post not found</div>;
 
   // ====== TÍNH TÊN TÁC GIẢ HIỂN THỊ ======
-  const authorName =
-    post.authorName ||
-    post.author?.username ||
-    (post.author?.email ? post.author.email.split("@")[0] : "") ||
-    post.author?.name ||
-    "Unknown";
+  // ✅ Ưu tiên authorUserName từ API mới, fallback về author object từ API cũ
+  // Nếu là post của chính mình, ưu tiên lấy từ user (đã được update)
+  const isMyPost = user && (
+    post.authorUserName === user.username ||
+    post.author?.username === user.username ||
+    post.author?.id === user.id
+  );
+  
+  const authorName = isMyPost && user?.username
+    ? user.username  // ✅ Ưu tiên username từ user nếu là post của mình
+    : post.authorUserName ||  // API mới: PostResponse có authorUserName (string)
+      post.authorName ||
+      post.author?.username ||  // API cũ: Post model có author object
+      (post.author?.email ? post.author.email.split("@")[0] : "") ||
+      post.author?.name ||
+      "Unknown";
 
   const authorInitials =
     authorName
@@ -209,11 +274,52 @@ export default function PostDetailPage() {
       .join("")
       .toUpperCase() || "U";
 
+  // Avatar URL từ author
+  // ✅ Nếu là post của chính mình, ưu tiên lấy từ user (đã được update)
+  let avatarUrlToUse = null;
+  
+  if (isMyPost && user?.avatarUrl) {
+    // ✅ Ưu tiên avatar từ user nếu là post của mình
+    avatarUrlToUse = user.avatarUrl;
+  } else {
+    // Fallback về avatar từ backend
+    avatarUrlToUse = post.author?.avatarUrl || null;
+  }
+  
+  const authorAvatarUrl = getAvatarUrl(avatarUrlToUse);
+
+  // Lấy bản dịch cho title và description nếu có
+  const translatedTitle = getTranslatedPostContent(post.title, "title", language);
+  const translatedDescription = getTranslatedPostContent(post.title, "description", language);
+  
+  const displayTitle = translatedTitle || post.title;
+  const displayDescription = translatedDescription || post.description;
+
   return (
     <div className="page post-detail">
       <main className="post-detail-main">
         <div className="post-meta-top">
-          <div className="avatar-circle">{authorInitials}</div>
+          {authorAvatarUrl ? (
+            <img
+              src={authorAvatarUrl}
+              alt={authorName}
+              className="avatar-circle avatar-image"
+              onError={(e) => {
+                // Fallback to initials if image fails
+                const placeholder = e.currentTarget.nextElementSibling;
+                if (placeholder) {
+                  e.currentTarget.style.display = "none";
+                  placeholder.style.display = "flex";
+                }
+              }}
+            />
+          ) : null}
+          <div 
+            className="avatar-circle"
+            style={{ display: authorAvatarUrl ? "none" : "flex" }}
+          >
+            {authorInitials}
+          </div>
 
           <div>
             <div className="author-name">{authorName}</div>
@@ -250,8 +356,8 @@ export default function PostDetailPage() {
           )}
         </div>
 
-        <h1>{post.title}</h1>
-        <p className="post-description-full">{post.description}</p>
+        <h1>{displayTitle}</h1>
+        <p className="post-description-full">{displayDescription}</p>
 
         {/* ======= SLIDES SECTION ======= */}
         {post.slideUrls && post.slideUrls.length > 0 && (
@@ -324,16 +430,6 @@ export default function PostDetailPage() {
           <h3>AI Explain</h3>
 
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <select
-              value={aiLevel}
-              onChange={(e) => setAiLevel(e.target.value)}
-              style={{ padding: 8, borderRadius: 10 }}
-            >
-              <option value="basic">basic</option>
-              <option value="intermediate">intermediate</option>
-              <option value="advanced">advanced</option>
-            </select>
-
             <button
               className="btn-primary"
               type="button"

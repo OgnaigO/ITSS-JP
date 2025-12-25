@@ -2,9 +2,13 @@
 import { useState, useEffect } from "react";
 import { createPost } from "../../api/postsApi";
 import { useAuth } from "../../context/AuthContext";
+import { useNotifications } from "../../context/NotificationContext";
+import { useLanguage } from "../../context/LanguageContext";
 
 export default function PostModal({ isOpen, onClose, onCreated }) {
   const { user } = useAuth();
+  const { addNotification } = useNotifications();
+  const { language, t } = useLanguage();
 
   const [title, setTitle] = useState("");
   const [subject, setSubject] = useState("");
@@ -93,16 +97,34 @@ export default function PostModal({ isOpen, onClose, onCreated }) {
         title,
         description,
         category: subject, // backend dùng field category
+        authorId: user?.id, // ✅ gửi authorId thay vì chỉ authorName
         authorName,
         thumbnailFile, // ✅ thêm thumbnail
         slideFiles,
       });
 
+      // Tạo notification cho bản thân về việc đăng bài thành công
+      addNotification({
+        type: "post",
+        title: language === "Vietnamese" 
+          ? "Đăng bài thành công"
+          : "投稿が成功しました",
+        message: language === "Vietnamese"
+          ? `"${title}" đã được đăng`
+          : `「${title}」が投稿されました`,
+        link: `/posts/${newPost.id}`,
+      });
+
+      // ✅ Không gửi notification cho user khác ở đây vì:
+      // - localStorage không thể chia sẻ giữa browsers
+      // - HomePage sẽ tự động tạo notification khi user vào trang
+      // - Tránh duplicate notifications
+
       onCreated?.(newPost);
       onClose();
     } catch (err) {
       console.error(err);
-      alert("Post failed. Please check backend logs / network tab.");
+      alert(t("postModal.error"));
     } finally {
       setSubmitting(false);
     }
@@ -111,61 +133,68 @@ export default function PostModal({ isOpen, onClose, onCreated }) {
   return (
     <div className="modal-backdrop">
       <div className="modal">
-        <h2>Post a Slide</h2>
+        <h2>{t("postModal.create")}</h2>
         <p>
-          Share a slide that's difficult to explain and get AI suggestions and
-          advice from fellow teachers.
+          {t("postModal.description")}
         </p>
 
         <form onSubmit={handleSubmit} className="modal-form">
           <label>
-            Title *
+            {t("postModal.title")} *
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g., How to explain photosynthesis visually?"
+              placeholder={t("postModal.titlePlaceholder")}
               required
             />
           </label>
 
           <label>
-            Subject *
+            {t("postModal.category")} *
             <select
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
               required
             >
-              <option value="">Select a subject</option>
-              <option value="Biology">Biology</option>
-              <option value="Mathematics">Mathematics</option>
-              <option value="History">History</option>
+              <option value="">{t("postModal.selectCategory")}</option>
+              <option value="Biology">{t("postModal.biology")}</option>
+              <option value="Mathematics">{t("postModal.mathematics")}</option>
+              <option value="History">{t("postModal.history")}</option>
+              <option value="Physics">{t("postModal.physics")}</option>
+              <option value="Chemistry">{t("postModal.chemistry")}</option>
+              <option value="Literature">{t("postModal.literature")}</option>
+              <option value="Geography">{t("postModal.geography")}</option>
+              <option value="English">{t("postModal.english")}</option>
+              <option value="Computer Science">{t("postModal.computerScience")}</option>
+              <option value="Art">{t("postModal.art")}</option>
+              <option value="Music">{t("postModal.music")}</option>
             </select>
           </label>
 
           <label>
-            Author Name *
+            {t("postModal.authorName")} *
             <input
               value={authorName}
               onChange={(e) => setAuthorName(e.target.value)}
-              placeholder="Your name"
+              placeholder={t("postModal.authorPlaceholder")}
               required
               disabled={!!user}
             />
           </label>
 
           <label>
-            Description *
+            {t("postModal.descriptionLabel")} *
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Describe what makes this slide difficult to explain..."
+              placeholder={t("postModal.descriptionPlaceholder")}
               required
             />
           </label>
 
           {/* ✅ THUMBNAIL */}
           <label>
-            Thumbnail Image (1 file)
+            {t("postModal.thumbnail")}
             <input
               type="file"
               accept="image/*"
@@ -175,7 +204,7 @@ export default function PostModal({ isOpen, onClose, onCreated }) {
 
           {thumbnailPreviewUrl && (
             <div className="slides-preview-item" style={{ marginTop: 8 }}>
-              <div className="slides-preview-title">Thumbnail preview</div>
+              <div className="slides-preview-title">{t("postModal.thumbnailPreview")}</div>
               <img
                 src={thumbnailPreviewUrl}
                 alt="thumbnail preview"
@@ -186,7 +215,7 @@ export default function PostModal({ isOpen, onClose, onCreated }) {
 
           {/* SLIDES */}
           <label>
-            Slide Files (you can select multiple files)
+            {t("postModal.slides")}
             <input
               type="file"
               accept=".pdf,image/*"
@@ -201,7 +230,7 @@ export default function PostModal({ isOpen, onClose, onCreated }) {
               {slidePreviews.map((p, idx) => (
                 <div key={idx} className="slides-preview-item">
                   <div className="slides-preview-title">
-                    Slide {idx + 1} – {p.name}
+                    {t("postModal.slide")} {idx + 1} – {p.name}
                   </div>
 
                   {p.isImage && (
@@ -231,14 +260,14 @@ export default function PostModal({ isOpen, onClose, onCreated }) {
 
           <div className="modal-actions">
             <button type="button" onClick={onClose}>
-              Cancel
+              {t("postModal.cancel")}
             </button>
             <button
               type="submit"
               className="btn-primary post-slide"
               disabled={submitting}
             >
-              {submitting ? "Posting..." : "Post Slide"}
+              {submitting ? t("postModal.posting") : t("postModal.submit")}
             </button>
           </div>
         </form>

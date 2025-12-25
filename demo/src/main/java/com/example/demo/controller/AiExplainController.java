@@ -4,7 +4,7 @@ import com.example.demo.DTO.ExplainPostResponse;
 import com.example.demo.service.GeminiExplainService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
-
+@CrossOrigin("*")
 @RestController
 @RequestMapping("/api/ai")
 @RequiredArgsConstructor

@@ -8,7 +8,13 @@ import PostDetailPage from "./pages/PostDetailPage";
 import PostModal from "./components/posts/PostModal";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
+import ProfilePage from "./pages/ProfilePage";
+import SettingsPage from "./pages/SettingsPage";
+import ThemeInitializer from "./components/ThemeInitializer";
+import LanguageInitializer from "./components/LanguageInitializer";
 import { AuthProvider } from "./context/AuthContext";
+import { LanguageProvider } from "./context/LanguageContext";
+import { NotificationProvider } from "./context/NotificationContext";
 
 function AppInner() {
   const [isPostModalOpen, setPostModalOpen] = useState(false);
@@ -30,6 +36,8 @@ function AppInner() {
 
   return (
     <>
+      <ThemeInitializer />
+      <LanguageInitializer />
       <Header
         searchValue={searchText}
         onSearchChange={handleSearchChange}
@@ -69,6 +77,9 @@ function AppInner() {
           <Route path="/posts/:id" element={<PostDetailPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/profile/:id" element={<ProfilePage />} />
+          <Route path="/settings" element={<SettingsPage />} />
         </Routes>
       </main>
     </>
@@ -77,8 +88,12 @@ function AppInner() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppInner />
-    </AuthProvider>
+    <LanguageProvider>
+      <AuthProvider>
+        <NotificationProvider>
+          <AppInner />
+        </NotificationProvider>
+      </AuthProvider>
+    </LanguageProvider>
   );
 }

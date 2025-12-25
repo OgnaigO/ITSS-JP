@@ -16,4 +16,14 @@ public interface PostRepository extends MongoRepository<Post, String> {
             String category,
             Pageable pageable
     );
+
+    Page<Post> findByAuthor_Id(String authorId, Pageable pageable);
+
+    Page<Post> findByAuthor_IdAndTitleContainingIgnoreCase(String authorId, String title, Pageable pageable);
+
+    Page<Post> findByAuthor_IdAndCategoryIgnoreCase(String authorId, String category, Pageable pageable);
+
+    Page<Post> findByAuthor_IdAndTitleContainingIgnoreCaseAndCategoryIgnoreCase(
+            String authorId, String title, String category, Pageable pageable
+    );
 }

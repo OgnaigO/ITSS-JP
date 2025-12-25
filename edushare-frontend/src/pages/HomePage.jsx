@@ -2,8 +2,14 @@
 import { useEffect, useState } from "react";
 import { fetchPosts } from "../api/postsApi";
 import PostCard from "../components/posts/PostCard";
+import { useLanguage } from "../context/LanguageContext";
+import { useAuth } from "../context/AuthContext";
+import { useNotifications } from "../context/NotificationContext";
 
 export default function HomePage({ externalSearch = "", reloadFlag = 0 }) {
+  const { t, language } = useLanguage();
+  const { user } = useAuth();
+  const { addNotification } = useNotifications();
   // TOÀN bộ bài viết lấy từ BE
   const [allPosts, setAllPosts] = useState([]);
 
@@ -39,6 +45,43 @@ export default function HomePage({ externalSearch = "", reloadFlag = 0 }) {
         });
 
         const items = Array.isArray(data.content) ? data.content : data;
+        
+        // ✅ Tự động tạo notification cho posts mới của user khác
+        if (user && items.length > 0) {
+          const seenPostsKey = `seenPosts_${user.id || user.username}`;
+          const seenPosts = JSON.parse(localStorage.getItem(seenPostsKey) || "[]");
+          
+          // Tìm posts mới (chưa thấy trước đó) của user khác
+          const newPosts = items.filter((post) => {
+            const postId = post.id;
+            const isSeen = seenPosts.includes(postId);
+            const isMyPost = post.authorUserName === user.username || 
+                           post.author?.username === user.username ||
+                           post.author?.id === user.id;
+            
+            return !isSeen && !isMyPost;
+          });
+          
+          // Tạo notification cho mỗi post mới
+          newPosts.forEach((post) => {
+            const authorName = post.authorUserName || post.author?.username || "Someone";
+            addNotification({
+              type: "post",
+              title: language === "Vietnamese"
+                ? `${authorName} đã đăng bài mới`
+                : `${authorName}が新しい投稿をしました`,
+              message: language === "Vietnamese"
+                ? `"${post.title}"`
+                : `「${post.title}」`,
+              link: `/posts/${post.id}`,
+            });
+          });
+          
+          // Lưu danh sách posts đã thấy
+          const allPostIds = items.map((p) => p.id);
+          localStorage.setItem(seenPostsKey, JSON.stringify(allPostIds));
+        }
+        
         setAllPosts(items || []);
       } catch (err) {
         console.error("Failed to load posts", err);
@@ -48,7 +91,7 @@ export default function HomePage({ externalSearch = "", reloadFlag = 0 }) {
     }
 
     loadAll();
-  }, [reloadFlag]);
+  }, [reloadFlag, user?.id, user?.username]);
 
   // Khi text search thay đổi thì luôn quay về trang 1
   useEffect(() => {
@@ -135,10 +178,9 @@ export default function HomePage({ externalSearch = "", reloadFlag = 0 }) {
       {/* Header khu feed (không còn nút +Post Slide nữa) */}
       <div className="feed-header">
         <div>
-          <h1>Welcome to EduShare</h1>
+          <h1>{t("home.welcome")}</h1>
           <p>
-            Share challenging slides and get AI-powered suggestions from fellow
-            educators.
+            {t("home.description")}
           </p>
         </div>
       </div>
@@ -155,10 +197,18 @@ export default function HomePage({ externalSearch = "", reloadFlag = 0 }) {
             setCategoryFilter(e.target.value);
           }}
         >
-          <option value="">All subjects</option>
-          <option value="Biology">Biology</option>
-          <option value="Mathematics">Mathematics</option>
-          <option value="History">History</option>
+          <option value="">{t("home.allSubjects")}</option>
+          <option value="Biology">{t("home.biology")}</option>
+          <option value="Mathematics">{t("home.mathematics")}</option>
+          <option value="History">{t("home.history")}</option>
+          <option value="Physics">{t("home.physics")}</option>
+          <option value="Chemistry">{t("home.chemistry")}</option>
+          <option value="Literature">{t("home.literature")}</option>
+          <option value="Geography">{t("home.geography")}</option>
+          <option value="English">{t("home.english")}</option>
+          <option value="Computer Science">{t("home.computerScience")}</option>
+          <option value="Art">{t("home.art")}</option>
+          <option value="Music">{t("home.music")}</option>
         </select>
 
         {/* Sort field */}
@@ -169,8 +219,8 @@ export default function HomePage({ externalSearch = "", reloadFlag = 0 }) {
             setSortBy(e.target.value);
           }}
         >
-          <option value="createdAt">Default sort (Newest)</option>
-          <option value="title">Sort by: Title</option>
+          <option value="createdAt">{t("home.sortNewest")}</option>
+          <option value="title">{t("home.sortTitle")}</option>
           {/* nếu sau này sort By subject thì mở lại: */}
           {/* <option value="category">Sort by: Subject</option> */}
         </select>
@@ -183,27 +233,25 @@ export default function HomePage({ externalSearch = "", reloadFlag = 0 }) {
             setDirection(e.target.value);
           }}
         >
-          <option value="asc">Ascending</option>
-          <option value="desc">Descending</option>
+          <option value="asc">{t("home.ascending")}</option>
+          <option value="desc">{t("home.descending")}</option>
         </select>
 
         <button type="button" onClick={handleClearFilters}>
-          Clear filters
+          {t("home.clearFilters")}
         </button>
       </div>
 
       {/* Tabs UI (chưa cần logic) */}
       <div className="feed-tabs">
-        <button className="tab active">Latest</button>
-        <button className="tab">Following</button>
-        <button className="tab">AI Recommended</button>
+        <button className="tab active">{t("home.latest")}</button>
       </div>
 
       {/* List bài viết */}
       {loading ? (
-        <div>Loading...</div>
+        <div>{t("home.loading")}</div>
       ) : posts.length === 0 ? (
-        <div>No posts found.</div>
+        <div>{t("home.noPosts")}</div>
       ) : (
         <div className="posts-grid">
           {posts.map((post) => (
@@ -219,17 +267,17 @@ export default function HomePage({ externalSearch = "", reloadFlag = 0 }) {
           disabled={page === 0}
           onClick={() => setPage((p) => Math.max(0, p - 1))}
         >
-          Previous
+          {t("home.previous")}
         </button>
         <span>
-          Page {page + 1} / {totalPages}
+          {t("home.page")} {page + 1} / {totalPages}
         </span>
         <button
           type="button"
           disabled={page + 1 >= totalPages}
           onClick={() => setPage((p) => p + 1)}
         >
-          Next
+          {t("home.next")}
         </button>
       </div>
     </div>

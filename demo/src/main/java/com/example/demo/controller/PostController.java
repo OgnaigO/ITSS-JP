@@ -1,5 +1,6 @@
 package com.example.demo.controller;
 
+import com.example.demo.DTO.PostResponse;
 import com.example.demo.model.Comment;
 import com.example.demo.model.Post;
 import com.example.demo.service.PostService;
@@ -12,6 +13,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
+
 @RestController
 @RequestMapping("/api/posts")
 @CrossOrigin("*")
@@ -21,16 +23,18 @@ public class PostController {
     private final PostService postService;
 
     @GetMapping("/filter")
-    public Page<Post> filterPosts(
+    public Page<PostResponse> filterPosts(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "12") int size,
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "desc") String direction,
             @RequestParam(required = false) String title,
-            @RequestParam(required = false) String category
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String userId   // <-- thêm
     ) {
-        return postService.filterPosts(page, size, sortBy, direction, title, category);
+        return postService.filterPosts(page, size, sortBy, direction, title, category, userId);
     }
+
 
     @GetMapping("/{id}")
     public Post getOne(@PathVariable String id) {
@@ -83,13 +87,14 @@ public class PostController {
             @RequestParam String title,
             @RequestParam String description,
             @RequestParam String category,
+            @RequestParam(required = false) String authorId,
             @RequestParam String authorName,
             @RequestPart("thumbnail") MultipartFile thumbnail,
             @RequestPart("slides") List<MultipartFile> slides
     ) throws IOException {
 
         return postService.createPostWithFiles(
-                title, description, category, authorName, thumbnail, slides
+                title, description, category, authorId, authorName, thumbnail, slides
         );
     }
 }
