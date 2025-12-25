@@ -14,9 +14,6 @@ export default function MyPostsPage({ externalSearch = "", reloadFlag = 0 }) {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // tab demo (Published / Drafts / Saved)
-  const [tab, setTab] = useState("published");
-
   // Phân trang (FE tự cắt, giống HomePage)
   const [page, setPage] = useState(0);
   const [pageSize] = useState(12);
@@ -31,17 +28,26 @@ export default function MyPostsPage({ externalSearch = "", reloadFlag = 0 }) {
   const isOwner = (post) => {
     if (!user) return false;
 
-    const author = post.author || {};
+    // ✅ Hỗ trợ cả API mới (authorUserName string) và API cũ (author object)
+    const author = post.author || {}; // API cũ: có thể là object hoặc null
+    const authorUserName = post.authorUserName; // API mới: string
     const currentId = user.id;
     const currentUsername = user.username;
     const currentEmail = user.email;
     const currentDisplay =
       currentUsername || (currentEmail ? currentEmail.split("@")[0] : "");
 
-    // 1. so id
+    // 1. So sánh với authorUserName từ API mới
+    if (authorUserName && currentUsername) {
+      if (normalize(authorUserName) === normalize(currentUsername)) {
+        return true;
+      }
+    }
+
+    // 2. So id (API cũ)
     if (author.id && currentId && author.id === currentId) return true;
 
-    // 2. so username
+    // 3. So username (API cũ)
     if (
       author.username &&
       currentUsername &&
@@ -50,7 +56,7 @@ export default function MyPostsPage({ externalSearch = "", reloadFlag = 0 }) {
       return true;
     }
 
-    // 3. so email
+    // 4. So email (API cũ)
     if (
       author.email &&
       currentEmail &&
@@ -59,7 +65,7 @@ export default function MyPostsPage({ externalSearch = "", reloadFlag = 0 }) {
       return true;
     }
 
-    // 4. so với authorName (lúc tạo post từ modal)
+    // 5. So với authorName (lúc tạo post từ modal)
     if (
       post.authorName &&
       currentDisplay &&
@@ -71,39 +77,46 @@ export default function MyPostsPage({ externalSearch = "", reloadFlag = 0 }) {
     return false;
   };
 
-  // --------- 1. Lấy toàn bộ bài viết từ backend ----------
+  // --------- 1. Lấy bài viết từ backend (filter theo userId) ----------
   useEffect(() => {
     async function load() {
+      if (!user?.id) {
+        setAllPosts([]);
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       try {
+        // ✅ Gửi userId lên backend để filter trực tiếp
         const data = await fetchPosts({
           page: 0,
           size: 1000, // đủ lớn cho bài tập
-          // authorId gửi lên cũng được nhưng backend hiện chưa dùng
+          userId: user.id, // ✅ Backend hỗ trợ filter theo userId
         });
 
         const items = Array.isArray(data.content) ? data.content : data || [];
 
-        // Lọc lại: chỉ lấy bài của user đang đăng nhập
-        const mine = items.filter(isOwner);
-
-        setAllPosts(mine);
+        // ✅ Backend đã filter theo userId rồi, nên tất cả items đều là của user
+        // Không cần filter lại ở frontend nữa
+        setAllPosts(items);
       } catch (err) {
         console.error("Failed to load my posts", err);
+        console.error("User ID:", user?.id); // Debug log
         setAllPosts([]);
       } finally {
         setLoading(false);
       }
     }
 
-    // nếu chưa login thì không cần gọi, hoặc gọi nhưng sẽ filter ra rỗng
-    if (user) {
+    // Chỉ gọi khi có user và user.id
+    if (user?.id) {
       load();
     } else {
       setAllPosts([]);
       setLoading(false);
     }
-  }, [reloadFlag, tab, user]); // user đổi (login/logout) thì reload
+  }, [reloadFlag, user?.id]); // ✅ Chỉ depend vào user.id thay vì toàn bộ user object
 
   // Khi search thay đổi thì quay về trang 1
   useEffect(() => {
@@ -152,27 +165,6 @@ export default function MyPostsPage({ externalSearch = "", reloadFlag = 0 }) {
     <div className="page">
       <h1>My Posts</h1>
       <p>Manage your shared slides and track community feedback</p>
-
-      <div className="tabs">
-        <button
-          className={tab === "published" ? "tab active" : "tab"}
-          onClick={() => setTab("published")}
-        >
-          Published
-        </button>
-        <button
-          className={tab === "drafts" ? "tab active" : "tab"}
-          onClick={() => setTab("drafts")}
-        >
-          Drafts
-        </button>
-        <button
-          className={tab === "saved" ? "tab active" : "tab"}
-          onClick={() => setTab("saved")}
-        >
-          Saved
-        </button>
-      </div>
 
       {loading ? (
         <div>Loading...</div>

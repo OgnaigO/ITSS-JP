@@ -1,6 +1,9 @@
 // src/components/comments/CommentList.jsx
 import { useState } from "react";
 import { useAuth } from "../../context/AuthContext";
+import { getAvatarUrl } from "../../utils/avatarUtils";
+
+const BACKEND_ORIGIN = "http://localhost:8080";
 
 export function CommentList({
   comments,
@@ -40,10 +43,11 @@ export function CommentList({
     setReplyToId(null);
   };
 
-  // LẤY TÊN TÁC GIẢ: chỉ dựa trên dữ liệu backend trả về
+  // LẤY TÊN TÁC GIẢ: ưu tiên authorUsername từ API mới, fallback về author object từ API cũ
   const getAuthorName = (c) =>
+    c.authorUsername ||  // ✅ API mới: /api/posts/filter trả về authorUsername (string)
     c.authorName ||
-    c.author?.username ||
+    c.author?.username ||  // API cũ: /api/posts/{id} vẫn trả về author object
     c.author?.name ||
     c.username ||
     c.userName ||
@@ -51,31 +55,62 @@ export function CommentList({
     "Unknown";
 
   // Xác định đây có phải comment của chính user đang đăng nhập không
+  // ✅ Cập nhật để hỗ trợ cả API mới (authorUsername) và API cũ (author.id)
   const isOwnComment = (c) => {
     if (!user) return false;
+
+    // So sánh theo username (API mới trả về authorUsername string)
+    if (user.username && c.authorUsername) {
+      return user.username === c.authorUsername;
+    }
+
+    // So sánh theo ID (API cũ /api/posts/{id} vẫn trả về author object với id)
     const myId = user.id;
-    if (!myId) return false;
+    if (myId) {
+      const candidateIds = [c.author?.id, c.authorId, c.userId, c.user_id].filter(
+        Boolean
+      );
+      if (candidateIds.includes(myId)) return true;
+    }
 
-    // các khả năng backend/front-end lưu id
-    const candidateIds = [c.author?.id, c.authorId, c.userId, c.user_id].filter(
-      Boolean
-    );
+    // Fallback: so sánh username từ author object (API cũ)
+    if (user.username && c.author?.username) {
+      return user.username === c.author.username;
+    }
 
-    return candidateIds.includes(myId);
+    return false;
   };
 
   if (!comments || comments.length === 0) {
     return <p>No comments yet. Be the first to comment!</p>;
   }
 
+  // ✅ Kiểm tra xem comments đã là tree (có replies) hay là flat list
+  // API mới (/api/posts/filter) trả về tree, API cũ (/api/posts/{id}) trả về flat list
+  const isTreeStructure = comments.some((c) => Array.isArray(c.replies) && c.replies.length > 0);
+
   // --------- Build maps ---------
   const commentMap = {};
-  comments.forEach((c) => {
+  
+  // Nếu là tree, cần flatten để build map (bao gồm cả replies)
+  const flattenComments = (commentList) => {
+    const result = [];
+    for (const c of commentList) {
+      result.push(c);
+      if (Array.isArray(c.replies) && c.replies.length > 0) {
+        result.push(...flattenComments(c.replies));
+      }
+    }
+    return result;
+  };
+
+  const allComments = isTreeStructure ? flattenComments(comments) : comments;
+  allComments.forEach((c) => {
     commentMap[c.id] = c;
   });
 
   const childrenMap = {};
-  comments.forEach((c) => {
+  allComments.forEach((c) => {
     const pid = c.parentId || null;
     if (pid) {
       if (!childrenMap[pid]) childrenMap[pid] = [];
@@ -83,7 +118,11 @@ export function CommentList({
     }
   });
 
-  const rootComments = comments.filter((c) => !c.parentId);
+  // Nếu là tree, rootComments đã là root comments
+  // Nếu là flat list, filter ra root comments
+  const rootComments = isTreeStructure 
+    ? comments.filter((c) => !c.parentId)
+    : allComments.filter((c) => !c.parentId);
 
   // Lấy toàn bộ reply (mọi cấp) của 1 root, nhưng chỉ indent 1 lần
   const getFlatRepliesOfRoot = (rootId) => {
@@ -110,10 +149,45 @@ export function CommentList({
     const isReplyBoxOpen = replyToId === c.id;
     const own = isOwnComment(c); // true nếu là comment của mình
 
+    // Avatar URL từ author
+    // ✅ API mới không trả về avatarUrl trong comments, chỉ có authorUsername
+    // Nên ta chỉ dùng avatarUrl từ currentUser nếu là chính mình
+    let avatarUrlToUse = null;
+    
+    // Chỉ hiển thị avatar nếu là comment của chính user đang đăng nhập
+    if (own && user?.avatarUrl) {
+      avatarUrlToUse = user.avatarUrl;
+    }
+    
+    // Fallback: nếu API cũ vẫn trả về author object với avatarUrl
+    if (!avatarUrlToUse && c.author?.avatarUrl) {
+      avatarUrlToUse = c.author.avatarUrl;
+    }
+    const authorAvatarUrl = getAvatarUrl(avatarUrlToUse);
+    const authorInitials = (authorName?.[0] || "U").toUpperCase();
+
     return (
       <div key={c.id} className="comment-row" style={{ display: "flex" }}>
-        <div className="comment-avatar">
-          {(authorName?.[0] || "U").toUpperCase()}
+        {authorAvatarUrl ? (
+          <img
+            src={authorAvatarUrl}
+            alt={authorName}
+            className="comment-avatar comment-avatar-image"
+            onError={(e) => {
+              // Fallback to initials if image fails
+              const placeholder = e.currentTarget.nextElementSibling;
+              if (placeholder) {
+                e.currentTarget.style.display = "none";
+                placeholder.style.display = "flex";
+              }
+            }}
+          />
+        ) : null}
+        <div 
+          className="comment-avatar"
+          style={{ display: authorAvatarUrl ? "none" : "flex" }}
+        >
+          {authorInitials}
         </div>
 
         <div className="comment-body">

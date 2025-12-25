@@ -8,7 +8,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState("TEACHER");
+  const [role] = useState("TEACHER"); // ✅ Cố định là TEACHER
   const [school, setSchool] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -80,13 +80,7 @@ export default function RegisterPage() {
           />
         </label>
 
-        <label>
-          Role
-          <select value={role} onChange={(e) => setRole(e.target.value)}>
-            <option value="TEACHER">TEACHER</option>
-            <option value="STUDENT">STUDENT</option>
-          </select>
-        </label>
+        {/* Role luôn là TEACHER, không hiển thị select */}
 
         <label>
           School
